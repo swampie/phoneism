@@ -1,0 +1,167 @@
+h1= title
+p Welcome to #{title}
+a.grid(href='#')  grid
+div.res
+script(type='text/javascript')
+	$(document).ready(function(){
+			$('a.grid').click(function(ev){
+					var iphone = {coords:[{from:[26,62],to:[130,168]},
+					{from:[181,62],to:[130,168]},
+					{from:[336,62],to:[130,168]},
+					{from:[491,62],to:[130,168]},
+					{from:[26,237],to:[130,168]},
+					{from:[180,237],to:[130,168]},
+					{from:[336,237],to:[130,168]},
+					{from:[491,237],to:[130,168]},
+					{from:[26,413],to:[130,168]},
+					{from:[180,413],to:[130,168]},
+					{from:[336,413],to:[130,168]},
+					{from:[491,413],to:[130,168]}]}
+					ev.preventDefault();
+					var img = new Image();
+					img.onload = function(){
+						crop(img,iphone);
+					}
+					img.src = "/images/image.gif"
+				});
+		});
+		
+		function crop(img,data){
+			_.each(data.coords,function(coord){
+				var tc = $('<canvas/>')
+				var ctx = tc.get(0).getContext("2d");
+				tc.attr({width:129,height:167}).css({padding:'10px'});
+				ctx.drawImage(img,coord.from[0],coord.from[1],coord.to[0],coord.to[1],0,0,129,167);	
+				var imageData = ctx.getImageData(0,0,129,167)
+				var imgComp = new Image();
+				imgComp.src = tc.get(0).toDataURL();
+				$(imgComp).appendTo($('div.res').get(0));
+				convert_grey(imageData)
+				cleanUp(imageData);
+				ctx.putImageData( imageData, 0, 0 );
+				imgComp = new Image();
+				imgComp.src = tc.get(0).toDataURL();
+				$(imgComp).appendTo($('div.res').get(0));
+				$(imgComp).click(function(ev){
+					ev.preventDefault();
+					var toSend = $(this).attr('src');
+					$.ajax('/ocr',{type:'POST',data:{'toSend':toSend},success:function(t){alert(t.responseText);},error:function(e){alert(e)}});
+				});
+			});
+			
+		}
+		
+		function convert_grey(image_data){
+			for (var x = 0; x < image_data.width; x++){
+				for (var y = 0; y < image_data.height; y++){
+					var i = x*4+y*4*image_data.width;
+					var luma = Math.floor(image_data.data[i] * 299/1000 + image_data.data[i+1] * 587/1000 + image_data.data[i+2] * 114/1000);
+					if(luma<=230){
+						luma=0;
+					}
+					image_data.data[i] = luma;
+					image_data.data[i+1] = luma;
+					image_data.data[i+2] = luma;
+					image_data.data[i+3] = 255;
+				}
+			}
+		}
+		
+		function cleanUp(image_data){
+			for (var x = 0; x < image_data.width; x++){
+				for (var y = 0; y < image_data.height; y++){
+					var i = x*4+y*4*image_data.width;
+					var above = x*4+(y-1)*4*image_data.width;
+					var below = x*4+(y+1)*4*image_data.width;
+					if (image_data.data[i] == 255 &&
+						image_data.data[above] == 0 &&
+						image_data.data[below] == 0)  {
+							image_data.data[i] = 0;
+							image_data.data[i+1] = 0;
+							image_data.data[i+2] = 0;
+					}
+				}
+			}
+		}
+		
+		function filter(image_data, colour){
+			for (var x = 0; x < image_data.width; x++){
+				for (var y = 0; y < image_data.height; y++){
+					var i = x*4+y*4*image_data.width;
+					// Turn all the pixels of the certain colour to white
+					if (!(image_data.data[i] == colour)) {
+						image_data.data[i] = 0;
+						image_data.data[i+1] = 0;
+						image_data.data[i+2] = 0;
+					}
+				}
+			}
+		}
+		
+		function drawGrid(c,img){
+			var w = img.width;
+			var h = img.height;
+			var rgbks = [];
+
+			var ctx = c.get(0).getContext("2d");
+			ctx.drawImage( img, 0, 0 );
+			var pixels = ctx.getImageData( 0, 0, img.width, img.height ).data;
+			// 4 is used to ask for 3 images: red, green, blue and
+			// black in that order.
+			
+			var canvas = document.createElement("canvas");
+			canvas.width  = img.width;
+			canvas.height = img.height;
+						
+			var ctx = canvas.getContext('2d');
+			ctx.drawImage( img, 0, 0 );
+			
+			
+			
+			
+			var gridX = 0;
+			var topx = 65
+			var topy = 65
+			var margin = 28;
+			var icon = 125
+			//iphone:{margin:28,icon:125,topX:65,bottomY:700}
+			x=margin
+			while(x<canvas.width){
+				ctx.moveTo(x, topx);
+				ctx.lineTo(x, 700);
+				ctx.strokeStyle="red";
+				ctx.stroke();
+				if(gridX%2==0){
+					x+=icon
+				}else{
+					x+=margin
+				}
+				console.log(x)
+				gridX++;
+			}
+			x=65;
+			y = 28
+			gridY = 0;
+			while(x<700){
+				ctx.moveTo(y, topy);
+				ctx.lineTo(613, x);
+				ctx.strokeStyle="red";
+				ctx.stroke();
+				if(gridY%2==0){
+					x+=icon
+				}else{
+					x+=margin
+				}
+				console.log(x)
+				gridY++;
+			}
+			
+			
+			//ctx.putImageData( to, 0, 0 );
+
+				// image is _slightly_ faster then canvas for this, so convert
+			var imgComp = new Image();
+			imgComp.src = canvas.toDataURL();
+			$(imgComp).appendTo($('body'));
+			return rgbks;
+		}
